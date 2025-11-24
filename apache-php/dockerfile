@@ -1,0 +1,33 @@
+FROM php:8.3-apache
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    unzip \
+    && docker-php-ext-install mysqli pdo pdo_mysql \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN wget https://downloads.rclone.org/v1.63.1/rclone-v1.63.1-linux-amd64.zip -O /tmp/rclone.zip && \
+    unzip /tmp/rclone.zip -d /tmp && \
+    cp /tmp/rclone-v1.63.1-linux-amd64/rclone /usr/bin/ && \
+    chmod +x /usr/bin/rclone && \
+    rm -rf /tmp/rclone*
+
+RUN mkdir -p /mnt/onedrive /root/.config/rclone
+
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+RUN a2enmod rewrite \
+    && sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
+
+WORKDIR /var/www/html
+#composer oddzielnie
+COPY composer.json composer.lock* ./
+RUN composer install --no-interaction --prefer-dist
+RUN composer dump-autoload
+COPY . .
+
+EXPOSE 80
+RUN sed -ri -e 's!DocumentRoot /var/www/html!DocumentRoot /var/www/html/public!g' /etc/apache2/sites-available/*.conf && \
+    sed -ri -e 's!<Directory /var/www/html>!<Directory /var/www/html/public>!g' /etc/apache2/sites-available/*.conf
+
+CMD ["apache2-foreground"]
