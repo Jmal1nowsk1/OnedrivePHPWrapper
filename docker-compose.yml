@@ -3,7 +3,7 @@ services:
     build: ./apache-php
     container_name: apache_php
     ports:
-      - "8080:80"
+      - "8082:80"
     depends_on:
       - rclone
     volumes:
@@ -15,7 +15,7 @@ services:
     container_name: rclone_onedrive
     volumes:
       - ./apache-php/rclone.conf:/root/.config/rclone/rclone.conf:ro
-    command: "serve webdav lmpay-sa: --addr :8081 --vfs-cache-mode writes"
+    command: "serve webdav onedrive: --addr :8081 --vfs-cache-mode writes"
     restart: unless-stopped
     security_opt:
       - apparmor:unconfined

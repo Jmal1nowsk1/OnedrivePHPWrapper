@@ -82,7 +82,7 @@ class OneDriveClient
             CURLOPT_TIMEOUT => 300,
         ]);
 
-        curl_exec($ch);
+        $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlErr = curl_error($ch);
 
@@ -90,9 +90,21 @@ class OneDriveClient
         curl_close($ch);
 
         $success = $httpCode >= 200 && $httpCode < 300;
-        $error = $success ? '' : ($curlErr ?: 'Błąd HTTP ' . $httpCode);
+        $error = '';
+        if (!$success) {
+            if ($curlErr) {
+                $error = $curlErr;
+            } else {
+                $json = json_decode($response, true);
+                if (json_last_error() === JSON_ERROR_NONE && isset($json['error'])) {
+                    $error = $json['error'];
+                } else {
+                    $error = "Błąd HTTP $httpCode: $response";
+                }
+            }
+        }
+        return ['success' => $success, 'error' => $error, 'httpCode' => $httpCode, 'response' => $response.$url];
 
-        return ['success' => $success, 'error' => $error];
     }
     /**
      * Usunięcie pliku z OneDrive

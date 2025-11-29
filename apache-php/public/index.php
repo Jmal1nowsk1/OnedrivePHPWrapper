@@ -7,11 +7,24 @@ use App\OneDriveClient;
 $dotenv = Dotenv\Dotenv::createImmutable('../');
 $dotenv->load();
 
-header('Content-Type: application/json');
+//header('Content-Type: application/json');
 
 $client = new OneDriveClient();
 $method = $_SERVER['REQUEST_METHOD'];
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$headers = getallheaders();
+$auth = $headers['Authorization'] ?? '';
+
+
+if ($auth !== $_ENV['TOKEN']) {
+    http_response_code(401);
+    echo json_encode([
+        'error' => 'Invalid token',
+        'token' => $_ENV['TOKEN'],
+        'got' => $headers
+    ]);
+    exit;
+}
 
 switch (true) {
     case $method === 'POST' && $path === '/mkdir':

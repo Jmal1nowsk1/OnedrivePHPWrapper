@@ -1,4 +1,4 @@
-FROM php:8.3-apache
+FROM php:8.4-apache
 
 RUN apt-get update && apt-get install -y \
     curl \
@@ -7,9 +7,9 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install mysqli pdo pdo_mysql \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget https://downloads.rclone.org/v1.63.1/rclone-v1.63.1-linux-amd64.zip -O /tmp/rclone.zip && \
+RUN wget https://downloads.rclone.org/rclone-current-linux-amd64.zip -O /tmp/rclone.zip && \
     unzip /tmp/rclone.zip -d /tmp && \
-    cp /tmp/rclone-v1.63.1-linux-amd64/rclone /usr/bin/ && \
+    cp $(find /tmp -type f -name 'rclone' -path '*linux-amd64/*') /usr/bin/ && \
     chmod +x /usr/bin/rclone && \
     rm -rf /tmp/rclone*
 
@@ -18,6 +18,10 @@ RUN mkdir -p /mnt/onedrive /root/.config/rclone
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 RUN a2enmod rewrite \
     && sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
+
+RUN echo "upload_max_filesize = 10000M" >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "post_max_size = 10000M" >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "memory_limit = 10000M" >> /usr/local/etc/php/conf.d/uploads.ini
 
 WORKDIR /var/www/html
 #composer oddzielnie
