@@ -1,37 +1,48 @@
-FROM php:8.4-apache
+FROM php:8.5-apache
 
+# Zależności systemowe
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
     unzip \
+    git \
     && docker-php-ext-install mysqli pdo pdo_mysql \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget https://downloads.rclone.org/rclone-current-linux-amd64.zip -O /tmp/rclone.zip && \
-    unzip /tmp/rclone.zip -d /tmp && \
-    cp $(find /tmp -type f -name 'rclone' -path '*linux-amd64/*') /usr/bin/ && \
-    chmod +x /usr/bin/rclone && \
-    rm -rf /tmp/rclone*
-
-RUN mkdir -p /mnt/onedrive /root/.config/rclone
-
+# Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-RUN a2enmod rewrite \
-    && sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
 
+# Apache: mod_rewrite + DocumentRoot → public/
+RUN a2enmod rewrite \
+    && sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf \
+    && sed -ri -e 's!DocumentRoot /var/www/html!DocumentRoot /var/www/html/public!g' /etc/apache2/sites-available/*.conf \
+    && sed -ri -e 's!<Directory /var/www/html>!<Directory /var/www/html/public>!g' /etc/apache2/sites-available/*.conf
+
+# Limity przesyłania plików
 RUN echo "upload_max_filesize = 10000M" >> /usr/local/etc/php/conf.d/uploads.ini \
     && echo "post_max_size = 10000M" >> /usr/local/etc/php/conf.d/uploads.ini \
     && echo "memory_limit = 10000M" >> /usr/local/etc/php/conf.d/uploads.ini
 
 WORKDIR /var/www/html
-#composer oddzielnie
+
+# Zainstaluj zależności Composer (cache warstwy)
 COPY composer.json composer.lock* ./
-RUN composer install --no-interaction --prefer-dist
-RUN composer dump-autoload
+RUN composer install --no-interaction --prefer-dist --no-scripts --no-autoloader
+
+# Skopiuj kod aplikacji
 COPY . .
 
+# Finalizacja autoloadera i cache Laravela
+RUN composer dump-autoload --optimize \
+    && php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
+
+# Uprawnienia storage i bootstrap/cache
+RUN chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
+
 EXPOSE 80
-RUN sed -ri -e 's!DocumentRoot /var/www/html!DocumentRoot /var/www/html/public!g' /etc/apache2/sites-available/*.conf && \
-    sed -ri -e 's!<Directory /var/www/html>!<Directory /var/www/html/public>!g' /etc/apache2/sites-available/*.conf
 
 CMD ["apache2-foreground"]
+
