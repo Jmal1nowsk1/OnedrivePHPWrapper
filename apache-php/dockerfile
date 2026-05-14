@@ -32,11 +32,8 @@ RUN composer install --no-interaction --prefer-dist --no-scripts --no-autoloader
 # Skopiuj kod aplikacji
 COPY . .
 
-# Finalizacja autoloadera i cache Laravela
-RUN composer dump-autoload --optimize \
-    && php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache
+# Finalizacja autoloadera
+RUN composer dump-autoload --optimize --no-scripts
 
 # Uprawnienia storage i bootstrap/cache
 RUN chown -R www-data:www-data storage bootstrap/cache \
@@ -44,5 +41,8 @@ RUN chown -R www-data:www-data storage bootstrap/cache \
 
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+CMD ["/usr/local/bin/docker-entrypoint.sh"]
 
