@@ -3,7 +3,10 @@ set -e
 
 cd /var/www/html
 
-# Buduj cache Laravela przy każdym starcie kontenera
+# Zainstaluj/uzupełnij vendor/ (wolumen nadpisuje pliki z obrazu)
+composer install --no-interaction --prefer-dist --optimize-autoloader
+
+# Buduj cache Laravela
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
